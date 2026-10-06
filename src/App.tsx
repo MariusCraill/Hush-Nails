@@ -4,6 +4,16 @@ import { BookingsView } from "./components/BookingsView";
 import { MenuView } from "./components/MenuView";
 import { InvoicesView } from "./components/InvoicesView";
 import { MarketingView } from "./components/MarketingView";
+import { PlannerView } from "./components/PlannerView";
+import { usePlannerReminders } from "./hooks/usePlannerReminders";
+import {
+  DEFAULT_PLANNER_SETTINGS,
+  applyContent,
+  buildDayPlan,
+  fetchSlotContent,
+  addDays,
+  todayStr,
+} from "./utils/planner";
 import { PaymentsView } from "./components/PaymentsView";
 import { SettingsView } from "./components/SettingsView";
 import { ApkExportModal } from "./components/ApkExportModal";
@@ -21,6 +31,8 @@ import {
   ComboDeal,
   SpecialOffer,
   ClientProfile,
+  PlannerTask,
+  PlannerSettings,
 } from "./types";
 import {
   DEFAULT_BOOKINGS,
@@ -50,7 +62,7 @@ import {
 
 export default function App() {
   // Tabs
-  const [currentTab, setCurrentTab] = useState<TabType>("bookings");
+  const [currentTab, setCurrentTab] = useState<TabType>("planner");
   const [showGlobalApkModal, setShowGlobalApkModal] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(true);
@@ -187,6 +199,26 @@ export default function App() {
     }
   });
 
+  // AI Day Planner: tasks + settings (local to this device)
+  const [plannerTasks, setPlannerTasks] = useState<PlannerTask[]>(() => {
+    try {
+      const saved = localStorage.getItem("hush_planner_tasks");
+      const cutoff = addDays(todayStr(), -7);
+      return saved ? (JSON.parse(saved) as PlannerTask[]).filter((t) => t.date >= cutoff) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [plannerSettings, setPlannerSettings] = useState<PlannerSettings>(() => {
+    try {
+      const saved = localStorage.getItem("hush_planner_settings");
+      return saved ? { ...DEFAULT_PLANNER_SETTINGS, ...JSON.parse(saved) } : DEFAULT_PLANNER_SETTINGS;
+    } catch {
+      return DEFAULT_PLANNER_SETTINGS;
+    }
+  });
+
   // Notification Toast
   const [toast, setToast] = useState<{ message: string; type?: "success" | "info" } | null>(null);
 
@@ -255,6 +287,18 @@ export default function App() {
       localStorage.setItem("hush_nails_specials", JSON.stringify(specials));
     } catch (e) {}
   }, [specials]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("hush_planner_tasks", JSON.stringify(plannerTasks));
+    } catch (e) {}
+  }, [plannerTasks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("hush_planner_settings", JSON.stringify(plannerSettings));
+    } catch (e) {}
+  }, [plannerSettings]);
 
   // Connect to Google Cloud Firebase Firestore & Listen to Real-Time Updates
   useEffect(() => {
@@ -333,6 +377,43 @@ export default function App() {
       unsubscribe();
     };
   }, []);
+
+  // Planner reminders (toast + system notification) while the admin is signed in
+  usePlannerReminders({
+    enabled: session.role === "admin" && plannerSettings.notificationsEnabled,
+    tasks: plannerTasks,
+    bookings,
+    settings: plannerSettings,
+    onReminder: (msg) => showToast(`⏰ ${msg}`, "info"),
+  });
+
+  // Auto-plan today once per day when the admin opens the app
+  const latestPlannerInputs = React.useRef({ plannerTasks, bookings, plannerSettings, salon, menu });
+  latestPlannerInputs.current = { plannerTasks, bookings, plannerSettings, salon, menu };
+  useEffect(() => {
+    if (session.role !== "admin" || !plannerSettings.autoPlanDaily) return;
+    const today = todayStr();
+    try {
+      if (localStorage.getItem("hush_planner_autoplan_date") === today) return;
+    } catch {}
+    // Wait briefly so cloud bookings have loaded before planning around them
+    const timer = setTimeout(async () => {
+      const { plannerTasks, bookings, plannerSettings, salon, menu } = latestPlannerInputs.current;
+      try {
+        localStorage.setItem("hush_planner_autoplan_date", today);
+      } catch {}
+      const existing = plannerTasks.filter((t) => t.date === today);
+      if (existing.length > 0) return;
+      const plan = buildDayPlan({ date: today, bookings, settings: plannerSettings });
+      if (plan.tasks.length === 0) return;
+      const content = await fetchSlotContent(plan.tasks, salon, menu, plan.load.bookingCount);
+      setPlannerTasks((prev) =>
+        prev.some((t) => t.date === today) ? prev : [...prev, ...applyContent(plan.tasks, content)]
+      );
+      showToast("Today's plan is ready ✨ (auto-planned)");
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [session.role, plannerSettings.autoPlanDaily]);
 
   // Check URL query parameters for WhatsApp client invite link (?client=...)
   useEffect(() => {
@@ -725,6 +806,20 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 lg:pl-72 flex flex-col pb-24 lg:pb-12">
         <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+          {currentTab === "planner" && (
+            <PlannerView
+              tasks={plannerTasks}
+              settings={plannerSettings}
+              bookings={bookings}
+              menu={menu}
+              salon={salon}
+              onTasksChange={setPlannerTasks}
+              onSettingsChange={setPlannerSettings}
+              onOpenBookings={() => setCurrentTab("bookings")}
+              onToast={(m) => showToast(m, "info")}
+            />
+          )}
+
           {currentTab === "bookings" && (
             <BookingsView
               bookings={bookings}

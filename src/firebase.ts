@@ -8,6 +8,7 @@ import {
   onSnapshot,
   setDoc,
   deleteDoc,
+  getDoc,
   getDocs,
 } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";

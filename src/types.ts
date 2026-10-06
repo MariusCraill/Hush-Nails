@@ -181,3 +181,34 @@ export interface SpecialOffer {
   validity: string;
   terms?: string;
 }
+
+// ---------- AI Day Planner ----------
+export type PlannerTaskKind = "post" | "promo" | "prep" | "followup" | "custom";
+export type PlannerTaskStatus = "planned" | "done" | "skipped";
+
+export interface PlannerTask {
+  id: string;
+  date: string; // YYYY-MM-DD (local)
+  time: string; // HH:mm (local)
+  durationMinutes: number;
+  kind: PlannerTaskKind;
+  platform?: SocialPlatform;
+  title: string;
+  reason: string; // why the planner put it here
+  hook?: string;
+  caption?: string;
+  hashtags?: string[];
+  format?: string;
+  status: PlannerTaskStatus;
+  source: "auto" | "manual";
+  isPeak?: boolean;
+}
+
+export interface PlannerSettings {
+  workStart: string; // HH:mm
+  workEnd: string; // HH:mm
+  notificationsEnabled: boolean;
+  leadMinutes: number; // remind this many minutes before a slot
+  autoPlanDaily: boolean; // auto-build today's plan on open
+  remindBookings: boolean;
+}

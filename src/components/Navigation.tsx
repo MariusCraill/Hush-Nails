@@ -21,9 +21,11 @@ import {
   Users,
   LogOut,
   Cloud,
+  Wand2,
 } from "lucide-react";
 
 export type TabType =
+  | "planner"
   | "bookings"
   | "clients"
   | "marketing"
@@ -62,6 +64,13 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const navItems = [
+    {
+      id: "planner" as TabType,
+      label: "Plan My Day",
+      icon: Wand2,
+      badge: "AI",
+      badgeColor: "bg-rose-500 text-white",
+    },
     {
       id: "bookings" as TabType,
       label: "Bookings",
