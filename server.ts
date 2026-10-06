@@ -222,6 +222,87 @@ Return JSON format:
   }
 });
 
+// AI Day Planner: write ready-to-post content for each advertising slot
+interface DaySlot { id: string; platform: string; kind: string; time: string }
+
+function getCuratedSlotContent(slots: DaySlot[], salonName: string, city: string, services: { name: string; price: number }[], bookingCount: number) {
+  const svc = (i: number) => services[i % Math.max(1, services.length)] || { name: "Acrylic Full Set", price: 380 };
+  const where = city ? ` in ${city}` : "";
+  const open = bookingCount === 0 ? "I have open slots this week" : "A few slots are still open";
+  return slots.map((s, i) => {
+    const sv = svc(i);
+    const price = sv.price ? ` from R${sv.price}` : "";
+    if (s.kind === "promo") {
+      return {
+        id: s.id,
+        title: `Open slots: ${sv.name}`,
+        hook: `${open}. Who wants fresh nails before the weekend? 💅`,
+        caption: `${open}${where}! ${sv.name}${price}. Reply or WhatsApp to lock your spot with a deposit. First come, first served 💖`,
+        hashtags: ["#SANails", "#NailsSA", "#BookNow", "#NailTech"],
+        format: s.platform === "WhatsApp Status" ? "Photo of your best recent set + 'slots open' text" : "Story with countdown sticker",
+      };
+    }
+    const formats = ["Before & After timelapse", "Close-up reveal with satisfying audio", "POV nail tech day", "Pinterest inspo vs result"];
+    const hooks = [
+      "She thought her grown-out set was beyond saving... 💅",
+      "POV: you finally found a nail tech who gets the assignment ✨",
+      "This is why my clients rebook every 3 weeks 👀",
+      "Pinterest inspo vs what she walked out with 🔥",
+    ];
+    return {
+      id: s.id,
+      title: `${sv.name} showcase`,
+      hook: hooks[i % hooks.length],
+      caption: `${sv.name}${price}. Handcrafted${where} with zero damage and a flawless finish. ${open}. WhatsApp to book 💖`,
+      hashtags: ["#SANails", "#NailTok", "#NailInspo", "#SouthAfricaNails", "#NailTechLife"],
+      format: formats[i % formats.length],
+    };
+  });
+}
+
+app.post("/api/gemini/day-plan", async (req: Request, res: Response) => {
+  const body = req.body || {};
+  const salonName = String(body.salonName || "HUSH nails").slice(0, 80);
+  const city = String(body.city || "").replace(/[,\s]*\d+/g, "").trim().slice(0, 60); // drop postcodes
+  const bookingCount = Number(body.bookingCount) || 0;
+  const services: { name: string; price: number }[] = Array.isArray(body.services)
+    ? body.services.slice(0, 12).map((x: any) => ({ name: String(x?.name || "").slice(0, 80), price: Number(x?.price) || 0 }))
+    : [];
+  const slots: DaySlot[] = Array.isArray(body.slots)
+    ? body.slots.slice(0, 10).map((x: any) => ({
+        id: String(x?.id || ""),
+        platform: String(x?.platform || "TikTok").slice(0, 30),
+        kind: x?.kind === "promo" ? "promo" : "post",
+        time: String(x?.time || "").slice(0, 5),
+      }))
+    : [];
+
+  if (slots.length === 0) return res.json({ success: true, items: [], source: "none" });
+
+  const ai = getGenAI();
+  if (!ai) {
+    return res.json({ success: true, items: getCuratedSlotContent(slots, salonName, city, services, bookingCount), source: "curated" });
+  }
+
+  try {
+    const prompt = `You plan the social media day for "${salonName}", a South African nail salon${city ? ` in ${city}` : ""}.
+Bookings today: ${bookingCount}. ${bookingCount < 3 ? "The day is quiet, so promos should push open appointment slots and a WhatsApp booking CTA." : "The day is busy, so keep content light and brand-building."}
+Services (ZAR): ${JSON.stringify(services)}
+Write ONE ready-to-post item for each slot below. Vary the service, hook and format across slots. Use Rands (R), emojis, and a WhatsApp booking call to action. kind "promo" = promote open appointment slots; kind "post" = showcase/brand content.
+Slots: ${JSON.stringify(slots)}
+Return strictly valid JSON: {"items":[{"id":"<slot id>","title":"short title","hook":"first 3 seconds","caption":"caption with CTA","hashtags":["#SANails"],"format":"video/photo idea"}]}`;
+    const text = await generateWithGeminiFallback(ai, prompt);
+    const parsed = JSON.parse(text || "{}");
+    const valid = new Set(slots.map((s) => s.id));
+    const items = Array.isArray(parsed.items) ? parsed.items.filter((it: any) => it && valid.has(it.id)) : [];
+    if (items.length === 0) throw new Error("empty");
+    return res.json({ success: true, items, source: "ai" });
+  } catch {
+    console.warn("Day planner AI unavailable, serving curated content.");
+    return res.json({ success: true, items: getCuratedSlotContent(slots, salonName, city, services, bookingCount), source: "curated_fallback" });
+  }
+});
+
 // Setup Vite development or production serving
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
