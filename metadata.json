@@ -1,0 +1,8 @@
+{
+  "name": "HUSH nails",
+  "description": "All-in-one South African nail salon & business suite for HUSH nails: client bookings, ZAR invoicing, WhatsApp quotes, service menu management, and social media marketing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

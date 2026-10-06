@@ -1,0 +1,175 @@
+{
+  "entities": {
+    "SalonProfile": {
+      "title": "SalonProfile",
+      "description": "Studio settings, branding, EFT details, and contact info",
+      "type": "object",
+      "properties": {
+        "salonName": { "type": "string", "maxLength": 100 },
+        "tagline": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 100 },
+        "instagram": { "type": "string", "maxLength": 50 },
+        "address": { "type": "string", "maxLength": 200 },
+        "city": { "type": "string", "maxLength": 100 },
+        "bankName": { "type": "string", "maxLength": 50 },
+        "accountHolder": { "type": "string", "maxLength": 100 },
+        "accountNumber": { "type": "string", "maxLength": 50 },
+        "branchCode": { "type": "string", "maxLength": 20 },
+        "accountType": { "type": "string", "maxLength": 30 },
+        "snapScanId": { "type": "string", "maxLength": 50 },
+        "depositPercentage": { "type": "number" },
+        "cancellationPolicy": { "type": "string", "maxLength": 1000 },
+        "adminUsername": { "type": "string", "maxLength": 50 },
+        "adminPassword": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["salonName", "phone", "depositPercentage"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Client appointment booking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "clientName": { "type": "string", "maxLength": 100 },
+        "clientPhone": { "type": "string", "maxLength": 30 },
+        "clientEmail": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 20 },
+        "time": { "type": "string", "maxLength": 10 },
+        "durationMinutes": { "type": "number" },
+        "serviceIds": { "type": "array" },
+        "comboId": { "type": "string", "maxLength": 100 },
+        "customNotes": { "type": "string", "maxLength": 1000 },
+        "nailInspoDetails": { "type": "string", "maxLength": 500 },
+        "totalAmount": { "type": "number" },
+        "depositRequired": { "type": "number" },
+        "depositPaid": { "type": "number" },
+        "status": { "type": "string", "maxLength": 30 },
+        "paymentStatus": { "type": "string", "maxLength": 30 },
+        "paymentMethod": { "type": "string", "maxLength": 30 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["clientName", "clientPhone", "date", "time", "totalAmount", "status"]
+    },
+    "ClientProfile": {
+      "title": "ClientProfile",
+      "description": "Registered salon client profile with nail style preferences",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 100 },
+        "preferredStyle": { "type": "string", "maxLength": 300 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "isVip": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "lastVisit": { "type": "string", "maxLength": 30 }
+      },
+      "required": ["id", "name", "phone"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Nail service or treatment offering",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "maxLength": 50 },
+        "description": { "type": "string", "maxLength": 500 },
+        "price": { "type": "number" },
+        "durationMinutes": { "type": "number" },
+        "popular": { "type": "boolean" }
+      },
+      "required": ["id", "name", "category", "price", "durationMinutes"]
+    },
+    "ComboDeal": {
+      "title": "ComboDeal",
+      "description": "Promotional package or combo deal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "savings": { "type": "number" },
+        "durationMinutes": { "type": "number" },
+        "serviceIds": { "type": "array" },
+        "badge": { "type": "string", "maxLength": 50 },
+        "popular": { "type": "boolean" }
+      },
+      "required": ["id", "title", "price", "originalPrice"]
+    },
+    "SpecialOffer": {
+      "title": "SpecialOffer",
+      "description": "Promotional discount or seasonal special",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 100 },
+        "discountLabel": { "type": "string", "maxLength": 50 },
+        "description": { "type": "string", "maxLength": 500 },
+        "conditions": { "type": "string", "maxLength": 500 },
+        "validUntil": { "type": "string", "maxLength": 50 },
+        "promoCode": { "type": "string", "maxLength": 30 }
+      },
+      "required": ["id", "title", "discountLabel", "description"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "EFT invoice or quote",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "number": { "type": "string", "maxLength": 50 },
+        "type": { "type": "string", "maxLength": 20 },
+        "date": { "type": "string", "maxLength": 20 },
+        "dueDate": { "type": "string", "maxLength": 20 },
+        "clientName": { "type": "string", "maxLength": 100 },
+        "clientPhone": { "type": "string", "maxLength": 30 },
+        "clientEmail": { "type": "string", "maxLength": 100 },
+        "bookingId": { "type": "string", "maxLength": 128 },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "depositPaid": { "type": "number" },
+        "balanceDue": { "type": "number" },
+        "status": { "type": "string", "maxLength": 30 },
+        "paymentMethod": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "number", "type", "clientName", "subtotal", "status"]
+    }
+  },
+  "firestore": {
+    "/salons/{salonId}": {
+      "schema": "SalonProfile",
+      "description": "Studio settings, branding, EFT details, and admin configuration"
+    },
+    "/salons/{salonId}/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Client appointment bookings"
+    },
+    "/salons/{salonId}/clients/{clientId}": {
+      "schema": "ClientProfile",
+      "description": "Client database profiles"
+    },
+    "/salons/{salonId}/menu/{menuItemId}": {
+      "schema": "MenuItem",
+      "description": "Nail service offerings"
+    },
+    "/salons/{salonId}/combos/{comboId}": {
+      "schema": "ComboDeal",
+      "description": "Combo packages"
+    },
+    "/salons/{salonId}/specials/{specialId}": {
+      "schema": "SpecialOffer",
+      "description": "Specials and discount offers"
+    },
+    "/salons/{salonId}/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Invoices and quotes"
+    }
+  }
+}

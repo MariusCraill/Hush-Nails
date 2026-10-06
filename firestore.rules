@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Default deny for unmatched collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Salon documents and all nested collections (bookings, clients, menu, combos, specials, invoices, marketing)
+    match /salons/{salonId} {
+      allow read: if true;
+      allow write: if true;
+
+      match /{allSubcollections=**} {
+        allow read: if true;
+        allow write: if true;
+      }
+    }
+
+    // Connection check doc
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
