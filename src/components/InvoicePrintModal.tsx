@@ -5,6 +5,7 @@ import {
   generateWhatsAppInvoiceLink,
   formatWhatsAppInvoiceMessage,
   copyToClipboard,
+  formatStudioLocation,
 } from "../utils/formatters";
 import { SalonLogo } from "./SalonLogo";
 import { X, Printer, MessageCircle, Download, CheckCircle2, Copy, Check } from "lucide-react";
@@ -114,8 +115,14 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
                 </div>
               </div>
               <div className="text-xs text-stone-600 space-y-0.5 mt-2.5">
-                <p>{salon.address}</p>
-                <p>{salon.city}</p>
+                {formatStudioLocation(salon) ? (
+                  <p className="font-semibold text-stone-900">📍 {formatStudioLocation(salon)}</p>
+                ) : (
+                  <>
+                    {salon.address && <p>{salon.address}</p>}
+                    {salon.city && <p>{salon.city}</p>}
+                  </>
+                )}
                 <p>WhatsApp: {salon.phone} | {salon.email}</p>
               </div>
             </div>

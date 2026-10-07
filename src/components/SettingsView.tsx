@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { SalonProfile } from "../types";
 import { SalonLogo } from "./SalonLogo";
 import { ApkExportModal } from "./ApkExportModal";
-import { formatStudioLocation } from "../utils/formatters";
+import { formatStudioLocation, getGoogleMapsLink } from "../utils/formatters";
 import {
   Save,
   Building2,
@@ -394,14 +394,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </span>
             </div>
 
-            {/* Live WhatsApp Address Preview */}
-            <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs sm:col-span-2">
-              <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">
-                Live WhatsApp &amp; Invoices Address Preview
-              </span>
-              <div className="flex items-center gap-2 font-mono text-xs text-stone-800">
-                <span className="text-rose-500 font-bold">📍</span>
-                <span>{formatStudioLocation(formData) || "No address set yet"}</span>
+            {/* Live WhatsApp Address Preview & Quick Save */}
+            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs sm:col-span-2 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                  Live WhatsApp &amp; Invoices Address Preview
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  title="Immediately save address changes to cloud and update all WhatsApp links"
+                >
+                  {saved ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>{saved ? "Address Saved!" : "Save Studio Address"}</span>
+                </button>
+              </div>
+
+              <div className="space-y-1 font-mono text-xs text-stone-800 bg-white p-3 rounded-xl border border-stone-200">
+                <div className="flex items-start gap-2">
+                  <span className="text-rose-500 font-bold shrink-0">📍</span>
+                  <span className="font-semibold text-stone-900">
+                    {formatStudioLocation(formData) || "No address set yet"}
+                  </span>
+                </div>
+                {formatStudioLocation(formData) && (
+                  <div className="flex items-start gap-2 text-stone-500 text-[11px] pt-1 border-t border-stone-100">
+                    <span className="shrink-0">🗺️</span>
+                    <span className="truncate">
+                      Maps: {getGoogleMapsLink(formatStudioLocation(formData), formData.salonName)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

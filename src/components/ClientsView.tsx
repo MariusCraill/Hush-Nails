@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { ClientProfile, Booking, Invoice, SalonProfile } from "../types";
-import { formatZAR, cleanPhoneNumber, copyToClipboard, formatStudioLocation } from "../utils/formatters";
+import { formatZAR, cleanPhoneNumber, copyToClipboard, formatStudioLocation, getGoogleMapsLink } from "../utils/formatters";
 import {
   Users,
   UserPlus,
   Search,
   Phone,
   Mail,
+  MapPin,
   Calendar,
   Sparkles,
   Share2,
@@ -34,8 +35,10 @@ interface ClientsViewProps {
   onAddClient: (client: ClientProfile) => void;
   onUpdateClient: (client: ClientProfile) => void;
   onDeleteClient: (clientId: string) => void;
-  onSelectClientForPortal: (client: ClientProfile) => void;
+  onSelectClientForPortal?: (client: ClientProfile) => void;
   onOpenBookingForClient?: (client: ClientProfile) => void;
+  onUpdateSalon?: (updated: SalonProfile) => void;
+  onNavigateToSettings?: () => void;
 }
 
 export const ClientsView: React.FC<ClientsViewProps> = ({
@@ -48,6 +51,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   onDeleteClient,
   onSelectClientForPortal,
   onOpenBookingForClient,
+  onUpdateSalon,
+  onNavigateToSettings,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterVip, setFilterVip] = useState(false);
@@ -56,10 +61,16 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
 
+  // Quick Studio Address Modal State (for instant studio location updates in WhatsApp links)
+  const [isEditAddressOpen, setIsEditAddressOpen] = useState(false);
+  const [studioStreetAddress, setStudioStreetAddress] = useState(salon.address || "");
+  const [studioCity, setStudioCity] = useState(salon.city || "");
+
   // Form State
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
   const [preferredStyle, setPreferredStyle] = useState("");
   const [notes, setNotes] = useState("");
   const [isVip, setIsVip] = useState(false);
@@ -69,6 +80,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     setName("");
     setPhone("");
     setEmail("");
+    setAddress("");
     setPreferredStyle("");
     setNotes("");
     setIsVip(false);
@@ -80,6 +92,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     setName(c.name);
     setPhone(c.phone);
     setEmail(c.email || "");
+    setAddress(c.address || "");
     setPreferredStyle(c.preferredStyle || "");
     setNotes(c.notes || "");
     setIsVip(!!c.isVip);
@@ -96,6 +109,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         name: name.trim(),
         phone: phone.trim(),
         email: email.trim() || undefined,
+        address: address.trim() || undefined,
         preferredStyle: preferredStyle.trim() || undefined,
         notes: notes.trim() || undefined,
         isVip,
@@ -108,6 +122,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         name: name.trim(),
         phone: phone.trim(),
         email: email.trim() || undefined,
+        address: address.trim() || undefined,
         preferredStyle: preferredStyle.trim() || undefined,
         notes: notes.trim() || undefined,
         isVip,
@@ -119,6 +134,17 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     setIsModalOpen(false);
   };
 
+  const handleSaveStudioAddress = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUpdateSalon) return;
+    onUpdateSalon({
+      ...salon,
+      address: studioStreetAddress.trim(),
+      city: studioCity.trim(),
+    });
+    setIsEditAddressOpen(false);
+  };
+
   // Helper to generate personalized portal link
   const getClientPortalUrl = (client: ClientProfile) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -126,42 +152,61 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
     return `${origin}${pathname}?client=${encodeURIComponent(client.id)}`;
   };
 
-  // Generate WhatsApp invite link
+  // Generate WhatsApp invite link with live, fully-updated salon address
   const generateWhatsAppInviteLink = (client: ClientProfile) => {
     const cleanPhone = cleanPhoneNumber(client.phone);
     const portalUrl = getClientPortalUrl(client);
     const locationStr = formatStudioLocation(salon);
-    const message = `💅 *${salon.salonName} — Your Client Profile & Online Bookings*
+    const mapsLink = locationStr ? getGoogleMapsLink(locationStr, salon.salonName) : "";
 
-Hello ${client.name}! ✨
+    const lines = [
+      `💅 *${salon.salonName.toUpperCase()} — CLIENT PORTAL & ONLINE BOOKING*`,
+      `✨ ${salon.tagline || "Bespoke Sculpted Acrylics & BIAB Natural Care"}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      locationStr ? `📍 *Studio Address:* ${locationStr}` : "",
+      mapsLink ? `🗺️ *Directions & Map:* ${mapsLink}` : "",
+      `📞 *WhatsApp / Calls:* ${salon.phone}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,
+      `Hello *${client.name}*! ✨`,
+      ``,
+      `We have set up your personal client profile at *${salon.salonName}*.`,
+      ``,
+      `You can view our live treatment pricelist, browse secret specials & combo deals, and book appointments directly with your saved profile anytime:`,
+      `👉 ${portalUrl}`,
+      ``,
+      `We look forward to pampering your nails! 💕✨`,
+    ].filter(Boolean);
 
-We have created your personal profile at *${salon.salonName}*.
-
-You can view our live treatment pricelist, browse secret specials & combo deals, and book appointments directly with your saved profile anytime:
-👉 ${portalUrl}
-
-${locationStr ? `📍 *Location:* ${locationStr}\n` : ""}📞 WhatsApp: ${salon.phone}
-
-We look forward to pampering your nails! 💕`;
-
+    const message = lines.join("\n");
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
   const getWhatsAppMessageText = (client: ClientProfile) => {
     const portalUrl = getClientPortalUrl(client);
     const locationStr = formatStudioLocation(salon);
-    return `💅 *${salon.salonName} — Your Client Profile & Online Bookings*
+    const mapsLink = locationStr ? getGoogleMapsLink(locationStr, salon.salonName) : "";
 
-Hello ${client.name}! ✨
+    const lines = [
+      `💅 *${salon.salonName.toUpperCase()} — CLIENT PORTAL & ONLINE BOOKING*`,
+      `✨ ${salon.tagline || "Bespoke Sculpted Acrylics & BIAB Natural Care"}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      locationStr ? `📍 *Studio Address:* ${locationStr}` : "",
+      mapsLink ? `🗺️ *Directions & Map:* ${mapsLink}` : "",
+      `📞 *WhatsApp / Calls:* ${salon.phone}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,
+      `Hello *${client.name}*! ✨`,
+      ``,
+      `We have set up your personal client profile at *${salon.salonName}*.`,
+      ``,
+      `You can view our live treatment pricelist, browse secret specials & combo deals, and book appointments directly with your saved profile anytime:`,
+      `👉 ${portalUrl}`,
+      ``,
+      `We look forward to pampering your nails! 💕✨`,
+    ].filter(Boolean);
 
-We have created your personal profile at *${salon.salonName}*.
-
-You can view our live treatment pricelist, browse secret specials & combo deals, and book appointments directly with your saved profile anytime:
-👉 ${portalUrl}
-
-${locationStr ? `📍 *Location:* ${locationStr}\n` : ""}📞 WhatsApp: ${salon.phone}
-
-We look forward to pampering your nails! 💕`;
+    return lines.join("\n");
   };
 
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
@@ -255,10 +300,37 @@ We look forward to pampering your nails! 💕`;
           <p className="text-xs text-stone-500 mt-1 max-w-xl">
             Manage your salon clients, store custom nail preferences &amp; inspo notes, and generate personalized WhatsApp profile links so clients can view their history and live pricelists.
           </p>
-          <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-100 text-stone-700 text-xs font-medium border border-stone-200/80">
-            <span className="text-rose-500 font-bold">📍</span>
-            <span>Studio Location in WhatsApp:</span>
-            <span className="font-semibold text-stone-900">{formatStudioLocation(salon) || "No address configured"}</span>
+          <div className="mt-2.5 flex items-center flex-wrap gap-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 text-stone-700 text-xs font-medium border border-stone-200/80">
+              <span className="text-rose-500 font-bold">📍</span>
+              <span className="text-stone-500">Studio Address in WhatsApp:</span>
+              <strong className="font-semibold text-stone-900">{formatStudioLocation(salon) || "No address configured"}</strong>
+            </div>
+            {onUpdateSalon && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStudioStreetAddress(salon.address || "");
+                  setStudioCity(salon.city || "");
+                  setIsEditAddressOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition-colors cursor-pointer"
+                title="Update the physical salon address sent in all client WhatsApp links"
+              >
+                <Edit2 className="w-3 h-3 text-rose-500" />
+                <span>Update Studio Address</span>
+              </button>
+            )}
+            {onNavigateToSettings && (
+              <button
+                type="button"
+                onClick={onNavigateToSettings}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-stone-500 hover:text-stone-800 hover:bg-stone-100 text-xs font-medium transition-colors cursor-pointer"
+                title="Open Studio Settings"
+              >
+                <span>Full Settings</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -438,6 +510,12 @@ We look forward to pampering your nails! 💕`;
                               {client.email}
                             </span>
                           )}
+                          {client.address && (
+                            <span className="flex items-center gap-1 text-stone-600">
+                              <MapPin className="w-3 h-3 text-rose-500" />
+                              <span>{client.address}</span>
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -521,6 +599,18 @@ We look forward to pampering your nails! 💕`;
 
                 {/* Card Actions */}
                 <div className="mt-4 pt-3.5 border-t border-stone-100 space-y-2">
+                  {/* WhatsApp Studio Address Preview Notice */}
+                  <div className="flex items-center justify-between text-[11px] bg-stone-50 px-2.5 py-1.5 rounded-xl border border-stone-200/70 text-stone-600">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span className="text-rose-500 font-bold shrink-0">📍</span>
+                      <span className="text-stone-500 shrink-0">Included Address:</span>
+                      <strong className="text-stone-800 font-medium truncate">{formatStudioLocation(salon) || "No address configured"}</strong>
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-bold shrink-0 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Live
+                    </span>
+                  </div>
+
                   {/* WhatsApp Profile Access Button */}
                   <div className="flex items-center gap-2">
                     <a
@@ -528,7 +618,7 @@ We look forward to pampering your nails! 💕`;
                       target="_blank"
                       rel="noreferrer"
                       className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
-                      title="Send personalized portal link via WhatsApp"
+                      title="Send personalized portal link with studio address via WhatsApp"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
                       <span>Send WhatsApp Portal Link</span>
@@ -568,14 +658,20 @@ We look forward to pampering your nails! 💕`;
                   </div>
 
                   <div className="flex items-center justify-between text-xs pt-1">
-                    <button
-                      type="button"
-                      onClick={() => onSelectClientForPortal(client)}
-                      className="inline-flex items-center gap-1.5 text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Preview Portal as {client.name.split(" ")[0]}</span>
-                    </button>
+                    {onSelectClientForPortal ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelectClientForPortal(client)}
+                        className="inline-flex items-center gap-1.5 text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Preview Portal as {client.name.split(" ")[0]}</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-stone-500 font-medium">
+                        {stats.totalVisits > 0 ? `${stats.totalVisits} completed visits` : "Profile Saved"}
+                      </span>
+                    )}
 
                     <button
                       type="button"
@@ -706,6 +802,19 @@ We look forward to pampering your nails! 💕`;
 
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Client Physical Address / Suburb (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rosebank, Johannesburg or Sandton"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-stone-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
                   Preferred Nail Style, Length & Shape
                 </label>
                 <input
@@ -756,6 +865,94 @@ We look forward to pampering your nails! 💕`;
                   className="px-5 py-2 text-xs font-bold rounded-xl bg-stone-900 hover:bg-stone-800 text-white shadow-xs"
                 >
                   {editingClient ? "Save Changes" : "Create Client & Generate Link"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Quick Edit Studio Address Modal */}
+      {isEditAddressOpen && (
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-base">
+                  📍
+                </div>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">
+                    Update Studio Address
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    This address is instantly included in all WhatsApp client invite links and booking messages.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditAddressOpen(false)}
+                className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStudioAddress} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  Studio Street Address *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 30 Mandarin Rd or Studio 4, 142 Oxford Road"
+                  value={studioStreetAddress}
+                  onChange={(e) => setStudioStreetAddress(e.target.value)}
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-stone-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  City / Suburb &amp; Postal Code *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Johannesburg, 2196 or Rosebank"
+                  value={studioCity}
+                  onChange={(e) => setStudioCity(e.target.value)}
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-stone-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                />
+              </div>
+
+              {/* Live Preview */}
+              <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 text-xs">
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">
+                  Live WhatsApp Preview
+                </span>
+                <div className="flex items-start gap-1.5 font-mono text-stone-800 text-xs">
+                  <span className="text-rose-500 font-bold shrink-0">📍</span>
+                  <span>
+                    {formatStudioLocation({ ...salon, address: studioStreetAddress, city: studioCity }) || "No address entered"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditAddressOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold rounded-xl bg-stone-900 hover:bg-stone-800 text-white shadow-xs"
+                >
+                  Save Studio Address
                 </button>
               </div>
             </form>

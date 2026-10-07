@@ -144,6 +144,7 @@ export interface ClientProfile {
   name: string;
   phone: string;
   email?: string;
+  address?: string; // Physical address / suburb of the client
   notes?: string;
   preferredStyle?: string;
   isVip?: boolean;

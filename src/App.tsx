@@ -17,9 +17,7 @@ import {
 import { PaymentsView } from "./components/PaymentsView";
 import { SettingsView } from "./components/SettingsView";
 import { ApkExportModal } from "./components/ApkExportModal";
-import { ClientPortalView } from "./components/ClientPortalView";
 import { ClientsView } from "./components/ClientsView";
-import { AuthModal } from "./components/AuthModal";
 import {
   Booking,
   Invoice,
@@ -44,7 +42,7 @@ import {
 import { DEFAULT_MENU } from "./data/defaultMenu";
 import { DEFAULT_COMBOS, DEFAULT_SPECIALS } from "./data/defaultSpecials";
 import { cleanPhoneNumber } from "./utils/formatters";
-import { CheckCircle2, X, Eye, ShieldCheck, User, LogOut, Cloud } from "lucide-react";
+import { CheckCircle2, X, ShieldCheck, Cloud } from "lucide-react";
 import {
   testConnection,
   saveSalonProfileToCloud,
@@ -61,36 +59,14 @@ import {
 } from "./firebase";
 
 export default function App() {
-  // Tabs
+  // Tabs - opens to admin planner / bookings by default
   const [currentTab, setCurrentTab] = useState<TabType>("planner");
   const [showGlobalApkModal, setShowGlobalApkModal] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(true);
 
-  // User Role Session: The client portal is open to all to view by default
-  const [session, setSession] = useState<UserSession>(() => {
-    try {
-      const saved = localStorage.getItem("hush_nails_session");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Clear old dummy client profile if any
-        if (parsed.client && (parsed.client.name === "Lerato Molefe" && parsed.client.id === "cli-lerato")) {
-          return { role: "client" };
-        }
-        return parsed;
-      }
-    } catch {}
-    return { role: "client" };
-  });
-
-  // Admin authentication state: only admin access requires admin username & password
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("hush_nails_admin_auth") === "true";
-    } catch {
-      return false;
-    }
-  });
+  // Admin access by default without login required at this stage
+  const [session, setSession] = useState<UserSession>({ role: "admin" });
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(true);
 
   // Client database for HUSH nails
   const [clients, setClients] = useState<ClientProfile[]>(() => {
@@ -105,9 +81,6 @@ export default function App() {
       return DEFAULT_CLIENTS;
     }
   });
-
-  // Auth modal mode
-  const [authModalMode, setAuthModalMode] = useState<"admin" | "client_lookup">("admin");
 
   // Combos & Specials
   const [combos, setCombos] = useState<ComboDeal[]>(() => {
@@ -428,8 +401,8 @@ export default function App() {
             (cleanParam && cleanPhoneNumber(c.phone) === cleanParam)
         );
         if (matched) {
-          setSession({ role: "client", client: matched });
-          showToast(`Welcome ${matched.name}! Loaded your personal profile.`);
+          setCurrentTab("clients");
+          showToast(`Viewing client profile for ${matched.name}.`);
         }
       }
     } catch {}
@@ -540,30 +513,6 @@ export default function App() {
     setClients((prev) => prev.filter((c) => c.id !== id));
     deleteClientFromCloud(id);
     showToast("Client profile removed.");
-  };
-
-  const handleSelectClientForPortal = (client: ClientProfile) => {
-    setSession({ role: "client", client });
-    showToast(`Switched to Client Portal for ${client.name}.`);
-  };
-
-  const handleLogoutAdmin = () => {
-    setIsAdminLoggedIn(false);
-    localStorage.removeItem("hush_nails_admin_auth");
-    setSession({ role: "client" });
-    showToast("Logged out of Admin. Open Client Portal is active.");
-  };
-
-  const handleSetSession = (newSession: UserSession) => {
-    if (newSession.role === "admin") {
-      setIsAdminLoggedIn(true);
-      localStorage.setItem("hush_nails_admin_auth", "true");
-      setSession({ role: "admin" });
-      showToast("Logged in as Salon Admin (Full Access).");
-    } else {
-      setSession(newSession);
-      showToast(`Welcome ${newSession.client?.name || "Client"}! Profile loaded.`);
-    }
   };
 
   // Convert Booking to Invoice
@@ -683,103 +632,26 @@ export default function App() {
     (b) => b.status === "upcoming" || b.paymentStatus === "unpaid"
   ).length;
 
-  // If Client Portal is active
-  if (session.role === "client") {
-    return (
-      <div className="min-h-screen bg-stone-50 font-sans">
-        <ClientPortalView
-          salon={salon}
-          menu={menu}
-          bookings={bookings}
-          invoices={invoices}
-          currentSession={session}
-          combos={combos}
-          specials={specials}
-          onAddBooking={handleAddBooking}
-          onOpenAdminLogin={() => {
-            setAuthModalMode("admin");
-            setIsAuthModalOpen(true);
-          }}
-          onOpenProfileLookup={() => {
-            setAuthModalMode("client_lookup");
-            setIsAuthModalOpen(true);
-          }}
-          onClearClientProfile={() => {
-            setSession({ role: "client" });
-            showToast("Cleared loaded client profile.");
-          }}
-        />
-
-        {/* Auth Modal */}
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
-          currentSession={session}
-          onSetSession={handleSetSession}
-          salon={salon}
-          clients={clients}
-          initialMode={authModalMode}
-        />
-
-        {/* Toast Notification Alert */}
-        {toast && (
-          <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-            <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-stone-900 text-white shadow-xl border border-stone-800 text-xs font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{toast.message}</span>
-              <button
-                onClick={() => setToast(null)}
-                className="ml-2 text-stone-400 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Admin View (Default - Full Access)
+  // Admin View (Default - Direct Access)
   return (
     <div className="min-h-screen bg-stone-100/70 text-stone-900 flex flex-col font-sans">
       {/* Admin Top Status Bar */}
-      <div className="bg-stone-900 text-stone-300 px-4 py-1.5 text-xs flex items-center justify-between border-b border-stone-800 z-40">
+      <div className="bg-stone-900 text-stone-300 px-4 py-2 text-xs flex items-center justify-between border-b border-stone-800 z-40">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
           <span className="font-bold text-white flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Salon Admin Mode (Full Access)</span>
+            <span>Salon Admin Mode</span>
           </span>
           <span className="hidden sm:inline text-stone-400">
-            — Managing bookings, client profiles, quotes, invoices & ZAR settings
-          </span>
-          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80 text-[10px] font-semibold">
-            <Cloud className="w-3 h-3 text-emerald-400" />
-            <span>Firestore Live</span>
+            — Managing day planner, bookings, client profiles, invoices & settings
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setSession({ role: "client" });
-              showToast("Viewing Open Client Portal.");
-            }}
-            className="flex items-center gap-1.5 text-rose-300 hover:text-rose-100 font-bold underline cursor-pointer"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Open Client Portal (Pricelist & Combos)</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleLogoutAdmin}
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-[11px] font-medium border border-rose-800/60 cursor-pointer"
-            title="Lock Admin Dashboard"
-          >
-            <LogOut className="w-3 h-3" />
-            <span>Log Out Admin</span>
-          </button>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80 text-[10px] font-semibold">
+            <Cloud className="w-3 h-3 text-emerald-400" />
+            <span>{isCloudSynced ? "Firestore Cloud Live" : "Local Storage"}</span>
+          </span>
         </div>
       </div>
 
@@ -791,14 +663,6 @@ export default function App() {
         pendingBookingsCount={pendingBookingsCount}
         totalClientsCount={clients.length}
         onOpenApkGuide={() => setShowGlobalApkModal(true)}
-        onOpenAuthModal={() => {
-          setAuthModalMode("admin");
-          setIsAuthModalOpen(true);
-        }}
-        onSwitchToClient={() => {
-          setSession({ role: "client" });
-        }}
-        onLogoutAdmin={handleLogoutAdmin}
         userSession={session}
         isCloudSynced={isCloudSynced}
       />
@@ -842,7 +706,12 @@ export default function App() {
               onAddClient={handleAddClient}
               onUpdateClient={handleUpdateClient}
               onDeleteClient={handleDeleteClient}
-              onSelectClientForPortal={handleSelectClientForPortal}
+              onUpdateSalon={(updated) => {
+                setSalon(updated);
+                saveSalonProfileToCloud(updated);
+                showToast("Studio address updated across all WhatsApp links!");
+              }}
+              onNavigateToSettings={() => setCurrentTab("settings")}
             />
           )}
 
@@ -926,17 +795,6 @@ export default function App() {
         isOpen={showGlobalApkModal}
         onClose={() => setShowGlobalApkModal(false)}
         salonName={salon.salonName}
-      />
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentSession={session}
-        onSetSession={handleSetSession}
-        salon={salon}
-        clients={clients}
-        initialMode={authModalMode}
       />
     </div>
   );

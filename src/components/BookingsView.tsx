@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Booking, MenuItem, SalonProfile, BookingStatus, PaymentStatus, PaymentMethod, Invoice } from "../types";
-import { formatZAR, generateWhatsAppBookingLink, exportToCSV, cleanPhoneNumber } from "../utils/formatters";
+import { formatZAR, generateWhatsAppBookingLink, exportToCSV, cleanPhoneNumber, formatStudioLocation } from "../utils/formatters";
 import {
   Plus,
   Calendar as CalendarIcon,
@@ -1653,7 +1653,12 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                   <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
                     <a
                       href={`https://wa.me/${cleanPhoneNumber(client.phone)}?text=${encodeURIComponent(
-                        `Hi ${client.name}! 💅✨ Hope you're loving your nails from ${salon.salonName}. It's time for your next maintenance appointment! Let us know what date and time works best for you.`
+                        [
+                          `Hi ${client.name}! 💅✨ Hope you're loving your nails from ${salon.salonName}.`,
+                          `It's time for your next maintenance appointment! Let us know what date and time works best for you.`,
+                          formatStudioLocation(salon) ? `📍 Studio: ${formatStudioLocation(salon)}` : "",
+                          `📞 WhatsApp / Call: ${salon.phone}`,
+                        ].filter(Boolean).join("\n\n")
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

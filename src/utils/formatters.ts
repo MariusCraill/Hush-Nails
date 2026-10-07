@@ -60,6 +60,15 @@ export function formatStudioLocation(salon: SalonProfile): string {
 }
 
 /**
+ * Returns a direct Google Maps navigation URL for the studio location
+ */
+export function getGoogleMapsLink(location: string, salonName?: string): string {
+  if (!location) return "";
+  const query = salonName ? `${salonName}, ${location}` : location;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+/**
  * Generates a pre-formatted WhatsApp message string for a booking,
  * explicitly including the salon's name, phone, email, studio address, and banking details.
  */

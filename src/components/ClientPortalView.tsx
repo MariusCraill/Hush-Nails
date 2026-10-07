@@ -16,6 +16,7 @@ import {
   copyToClipboard,
   cleanPhoneNumber,
   formatStudioLocation,
+  getGoogleMapsLink,
 } from "../utils/formatters";
 import { SalonLogo } from "./SalonLogo";
 import {
@@ -1323,9 +1324,22 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </h3>
 
               <div className="space-y-2 text-xs text-stone-700">
-                <p>
-                  <strong>Physical Studio:</strong> {formatStudioLocation(salon)}
-                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-stone-100">
+                  <p>
+                    <strong>Physical Studio:</strong> {formatStudioLocation(salon) || "Studio address configured in Settings"}
+                  </p>
+                  {formatStudioLocation(salon) && (
+                    <a
+                      href={getGoogleMapsLink(formatStudioLocation(salon), salon.salonName)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200 transition-colors self-start sm:self-auto"
+                    >
+                      <MapPin className="w-3 h-3 text-rose-500" />
+                      <span>Open in Google Maps</span>
+                    </a>
+                  )}
+                </div>
                 <p>
                   <strong>WhatsApp & Calls:</strong>{" "}
                   <a
